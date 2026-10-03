@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WEB水族館</title>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+
+body{
+    margin:0;
+    background:#222;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+#aquarium{
+    width:1000px;
+    height:500px;
+    position:relative;
+    overflow:hidden;
+
+    background-image:url("background/tank.png");
+    background-size:cover;
+    background-position:center;
+    border:3px solid #333;
+}
+
+.fish{
+    position:absolute;
+    user-select:none;
+    pointer-events:none;
+}
+
+.bubble{
+    position:absolute;
+    bottom:-30px;
+
+    border-radius:50%;
+    background:rgba(255,255,255,0.6);
+
+    animation:rise linear forwards;
+}
+
+@keyframes rise{
+    from{
+        transform:translateY(0);
+        opacity:0;
+    }
+
+    20%{
+        opacity:1;
+    }
+
+    to{
+        transform:translateY(-550px);
+        opacity:0;
+    }
+}
+#drawButton {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 10;
+
+    padding: 10px 16px;
+    border: 2px solid white;
+    border-radius: 20px;
+
+    background: #16a34a;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div id="aquarium">
+    <button id="drawButton"
+        onclick="location.href='draw.html'">
+        さかなをかく
+    </button>
+</div>
+
+<script>
+
+/* =========================
+   Supabase接続
+   ========================= */
+
+const SUPABASE_URL = "https://yapohmzbgojtaygfceel.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_LzzA7XlGG4Q6qGQDpf8_mA_FZepVODX";
+
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
+
+
+/* =========================
+   水槽
+   ========================= */
+
+const aquarium = document.getElementById("aquarium");
+
+const fishes = [];
+
+const aquariumWidth = 1000;
+const aquariumHeight = 500;
+
+
+/* =========================
+   Supabaseから魚を読み込む
+   ========================= */
+
+
+async function loadFish(){
+
+    const { data, error } = await supabaseClient
+        .from("fishes")
+        .select("slot,image_path")
+        .order("slot", { ascending:true });
+
+    if(error){
+        console.error("魚の読み込みに失敗しました:", error);
+        return;
+    }
+
+    // 現在表示中の魚をスロットごとに整理
+    const oldBySlot = new Map(
+        fishes.map(f => [f.slot, f])
+    );
+
+    const updatedFishes = [];
+
+    data.forEach(function(row){
+
+        const oldFish = oldBySlot.get(row.slot);
+
+        // 同じ魚なら位置や動きを維持
+        if(oldFish && oldFish.image_path === row.image_path){
+            updatedFishes.push(oldFish);
+            oldBySlot.delete(row.slot);
+            return;
+        }
+
+        // 入れ替わった魚は古い画像を取り除く
+        if(oldFish){
+            oldFish.el.remove();
+            oldBySlot.delete(row.slot);
+        }
+
+        // 新しい魚を作る
+        const fish = document.createElement("img");
+
+        const imageUrl =
+            SUPABASE_URL +
+            "/storage/v1/object/public/fish-images/" +
+            row.image_path
+                .split("/")
+                .map(encodeURIComponent)
+                .join("/");
+
+        fish.src = imageUrl;
+        fish.className = "fish";
+
+        fish.style.width =
+            (60 + Math.random()*120) + "px";
+
+        aquarium.appendChild(fish);
+
+        updatedFishes.push({
+
+            el: fish,
+            slot: row.slot,
+            image_path: row.image_path,
+
+            x: Math.random()*900,
+            y: 50 + Math.random()*300,
+
+            vx: (Math.random()*1.4 + 0.7) *
+                (Math.random() > 0.5 ? 1 : -1),
+
+            vy: Math.random()*0.8 - 0.4,
+
+            wiggleOffset: Math.random()*1000,
+            wiggleSize: 2 + Math.random()*4
+        });
+    });
+
+    // データベースから消えた魚を画面から取り除く
+    oldBySlot.forEach(function(f){
+        f.el.remove();
+    });
+
+    // 現在の魚一覧を更新
+    fishes.splice(0, fishes.length, ...updatedFishes);
+
+}
+
+
+ 
+/* =========================
+   魚アニメーション
+   ========================= */
+
+function animateFish(){
+
+    fishes.forEach(function(f){
+
+        f.x += f.vx;
+
+        f.y += f.vy;
+
+        const w = f.el.offsetWidth;
+
+
+        if(f.x + w > aquariumWidth){
+
+            f.x = aquariumWidth - w;
+
+            f.vx *= -1;
+
+        }
+
+
+        if(f.x < 0){
+
+            f.x = 0;
+
+            f.vx *= -1;
+
+        }
+
+
+        if(f.y < 20){
+
+            f.vy *= -1;
+
+        }
+
+
+        if(f.y > aquariumHeight - 100){
+
+            f.vy *= -1;
+
+        }
+
+
+        f.el.style.left = f.x + "px";
+
+        f.el.style.top = f.y + "px";
+
+
+        const wiggle =
+            Math.sin(
+                Date.now() / 150 +
+                f.x / 50 +
+                f.wiggleOffset
+            ) * f.wiggleSize;
+
+
+        if(f.vx > 0){
+
+            f.el.style.transform =
+                `scaleX(-1) rotate(${wiggle}deg)`;
+
+        }else{
+
+            f.el.style.transform =
+                `rotate(${wiggle}deg)`;
+
+        }
+
+    });
+
+
+    requestAnimationFrame(animateFish);
+
+}
+
+
+/* =========================
+   泡
+   ========================= */
+
+function createBubble(){
+
+    const bubble = document.createElement("div");
+
+    bubble.className = "bubble";
+
+    const size = 5 + Math.random()*15;
+
+    bubble.style.width = size + "px";
+
+    bubble.style.height = size + "px";
+
+    bubble.style.left =
+        (50 + Math.random()*900) + "px";
+
+    bubble.style.animationDuration =
+        (4 + Math.random()*4) + "s";
+
+    aquarium.appendChild(bubble);
+
+
+    setTimeout(function(){
+
+        bubble.remove();
+
+    },8000);
+
+}
+
+
+setInterval(createBubble,500);
+
+
+/* =========================
+   開始
+   ========================= */
+
+loadFish();
+animateFish();
+setInterval(loadFish, 10000);
+
+</script>
+
+</body>
+</html>

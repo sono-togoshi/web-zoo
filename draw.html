@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>おさかなでざいん</title>
+
+<style>
+body {
+    text-align: center;
+    font-family: sans-serif;
+}
+
+canvas {
+    border: 2px solid black;
+    background: white;
+    touch-action: none;
+    max-width: 95%;
+}
+
+.color {
+    width: 50px;
+    height: 50px;
+    margin: 5px;
+    border: 2px solid black;
+}
+
+button {
+    cursor: pointer;
+}
+
+#status {
+    min-height: 1.5em;
+}
+</style>
+</head>
+
+<body>
+
+<h1>おさかなでざいん</h1>
+
+<div>
+<button class="color" style="background:black"
+onclick="setColor('black')"></button>
+
+<button class="color" style="background:yellow"
+onclick="setColor('yellow')"></button>
+
+<button class="color" style="background:blue"
+onclick="setColor('blue')"></button>
+
+<button class="color" style="background:red"
+onclick="setColor('red')"></button>
+
+<button class="color" style="background:green"
+onclick="setColor('green')"></button>
+
+<button class="color" style="background:purple"
+onclick="setColor('purple')"></button>
+
+<br><br>
+
+<button onclick="setSize(2)">ほそい</button>
+<button onclick="setSize(4)">ちゅうくらい</button>
+<button onclick="setSize(12)">ふとい</button>
+<button onclick="setEraser()">けしゴム</button>
+</div>
+
+<br><br>
+
+<canvas id="canvas" width="400" height="200"></canvas>
+
+<br><br>
+
+<button onclick="clearCanvas()">ぜんぶけす</button>
+<button id="uploadButton" onclick="savePNG()">
+すいそうにいれる
+</button>
+
+<p id="status" aria-live="polite"></p>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// index.html と同じ接続情報を設定する
+const SUPABASE_URL = "https://yapohmzbgojtaygfceel.supabase.co";
+const SUPABASE_KEY = "sb_publishable_LzzA7XlGG4Q6qGQDpf8_mA_FZepVODX";
+
+const supabaseClient = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const status = document.getElementById("status");
+const uploadButton = document.getElementById("uploadButton");
+
+let drawing = false;
+let currentColor = "black";
+let currentSize = 5;
+
+function setColor(color) {
+    currentColor = color;
+    ctx.globalCompositeOperation = "source-over";
+}
+
+function setSize(size) {
+    currentSize = size;
+}
+
+function setEraser() {
+    ctx.globalCompositeOperation = "destination-out";
+}
+
+function getPosition(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) * canvas.width / rect.width,
+        y: (e.clientY - rect.top) * canvas.height / rect.height
+    };
+}
+
+canvas.addEventListener("pointerdown", function(e) {
+    drawing = true;
+    canvas.setPointerCapture(e.pointerId);
+    const p = getPosition(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+});
+
+canvas.addEventListener("pointermove", function(e) {
+    if (!drawing) return;
+
+    const p = getPosition(e);
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentSize;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+});
+
+canvas.addEventListener("pointerup", function() {
+    drawing = false;
+});
+
+canvas.addEventListener("pointercancel", function() {
+    drawing = false;
+});
+
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// PNGをStorageにアップロードし、魚を登録する
+async function savePNG() {
+    if (drawing) {
+        status.textContent = "まず絵を描き終えてね。";
+        return;
+    }
+
+    uploadButton.disabled = true;
+    status.textContent = "すいそうに入れているよ……";
+
+    try {
+        // 描いた絵を透明PNGに変換
+        const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob(result => {
+                if (result) resolve(result);
+                else reject(new Error("PNGへの変換に失敗しました"));
+            }, "image/png");
+        });
+
+        // 同じ名前にならないようにする
+        const imagePath =
+            "fish-" + Date.now() + "-" +
+            Math.random().toString(36).slice(2) + ".png";
+
+        // Storageへアップロード
+        const { error: uploadError } = await supabaseClient
+            .storage
+            .from("fish-images")
+            .upload(imagePath, blob, {
+                contentType: "image/png",
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        // データベースに登録（15匹を超えたら最古の魚と入れ替え）
+        const { error: rpcError } = await supabaseClient
+            .rpc("add_fish", {
+                p_image_path: imagePath
+            });
+
+        if (rpcError) throw rpcError;
+
+        status.textContent = "おさかながすいそうに入ったよ！";
+　　　　location.href = "index.html";
+    } catch (error) {
+        console.error(error);
+        status.textContent =
+            "うまく入らなかったよ。もう一度試してね。";
+    } finally {
+        uploadButton.disabled = false;
+    }
+}
+</script>
+
+</body>
+</html>
+
