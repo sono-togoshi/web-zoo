@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>おさかなでざいん</title>
+<title>どうぶつでざいん</title>
 
 <style>
 body {
@@ -38,7 +38,7 @@ button {
 
 <body>
 
-<h1>おさかなでざいん</h1>
+<h1>どうぶつでざいん</h1>
 
 <div>
 <button class="color" style="background:black"
@@ -75,7 +75,7 @@ onclick="setColor('purple')"></button>
 
 <button onclick="clearCanvas()">ぜんぶけす</button>
 <button id="uploadButton" onclick="savePNG()">
-すいそうにいれる
+どうぶつえんにいれる
 </button>
 
 <p id="status" aria-live="polite"></p>
@@ -163,7 +163,7 @@ async function savePNG() {
     }
 
     uploadButton.disabled = true;
-    status.textContent = "すいそうに入れているよ……";
+    status.textContent = "どうぶつえんに入れているよ……";
 
     try {
         // 描いた絵を透明PNGに変換
@@ -176,13 +176,13 @@ async function savePNG() {
 
         // 同じ名前にならないようにする
         const imagePath =
-            "fish-" + Date.now() + "-" +
+            "animal-" + Date.now() + "-" +
             Math.random().toString(36).slice(2) + ".png";
 
         // Storageへアップロード
         const { error: uploadError } = await supabaseClient
             .storage
-            .from("fish-images")
+            .from("animal-images")
             .upload(imagePath, blob, {
                 contentType: "image/png",
                 upsert: false
@@ -192,18 +192,18 @@ async function savePNG() {
 
         // データベースに登録（15匹を超えたら最古の魚と入れ替え）
         const { error: rpcError } = await supabaseClient
-            .rpc("add_fish", {
+            .rpc("add_animal", {
                 p_image_path: imagePath
             });
 
         if (rpcError) throw rpcError;
 
-        status.textContent = "おさかながすいそうに入ったよ！";
+        status.textContent = "どうぶつえんにはいったよ！";
 　　　　location.href = "index.html";
     } catch (error) {
         console.error(error);
         status.textContent =
-            "うまく入らなかったよ。もう一度試してね。";
+            "うまくはいらなかったよ。もういちどためしてね。";
     } finally {
         uploadButton.disabled = false;
     }
