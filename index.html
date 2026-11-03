@@ -10,6 +10,44 @@
 
 <style>
 
+/* 8つの施設への共通ショートカット */
+#siteNav {
+    position: fixed;
+    left: 7%;
+    bottom: 0;
+    width: 50%;
+    z-index: 1000;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+}
+
+#siteNav a {
+    text-decoration: none;
+    color: #333;
+    background: #fff3df;
+    border: 1px solid #d9b47e;
+    border-radius: 5px;
+    padding: 3px 1px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+#siteNav a span {
+    display: block;
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    #siteNav {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
 body{
     margin:0;
     background:#222;
@@ -331,6 +369,33 @@ animateFish();
 setInterval(loadFish, 10000);
 
 </script>
+
+<nav id="siteNav">
+    <a href="https://sono-togoshi.github.io/web-aquarium/">
+        <span>🐟</span>さかな
+    </a>
+    <a href="https://sono-togoshi.github.io/web-zoo/">
+        <span>🐘</span>どうぶつ
+    </a>
+    <a href="https://sono-togoshi.github.io/web-dinosaur/">
+        <span>🦕</span>きょうりゅう
+    </a>
+    <a href="https://sono-togoshi.github.io/web-robot/">
+        <span>🤖</span>ろぼっと
+    </a>
+    <a href="https://sono-togoshi.github.io/web-space/">
+        <span>🚀</span>うちゅう
+    </a>
+    <a href="https://sono-togoshi.github.io/web-cake/">
+        <span>🍰</span>けーき
+    </a>
+    <a href="https://sono-togoshi.github.io/web-sushi/">
+        <span>🍣</span>すし
+    </a>
+    <a href="https://sono-togoshi.github.io/web-museum/">
+        <span>🎨</span>かいが
+    </a>
+</nav>
 
 </body>
 </html>
